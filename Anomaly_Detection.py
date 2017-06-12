@@ -72,8 +72,9 @@ def gridSearch(proba, labels):
 def visualiseFit(data, mu, cov):
 	"""Plot the contour lines of a 2D multivariate Gaussian"""
 	
+ 	slack = 5  	 # margins for plot
 	ticks = 100  # granularity level for contour lines
-	lin = np.linspace(0, 30, ticks)
+	lin = np.linspace(np.amin(data), np.amax(data), ticks)
 	
 	# generate data points
 	[X, Y] = np.meshgrid(lin, lin)
@@ -92,7 +93,7 @@ def visualiseFit(data, mu, cov):
 		[1e-20, 1e-10, 1e-8, 1e-6, 1e-5, 0.001, 0.009, 0.05, 0.1])
 	plt.xlabel("Latency (ms)")
 	plt.ylabel("Throughput (mb/sec)")
-	plt.axis([0, 30, 0, 30])
+	plt.axis([min(data[:, 0]) - slack, max(data[:, 0]) + slack, min(data[:, 1]) - slack, max(data[:, 0]) + slack])
 	plt.title("2D Gaussian model")
 	plt.show()
 
@@ -100,7 +101,7 @@ def visualiseFit(data, mu, cov):
 
 def main():
 
-	if False:
+	if True:
 
 		### Peform anomaly detection on a dataset of servers with 2 features ###
 		# import the 2D data 
@@ -139,7 +140,7 @@ def main():
 
 		#plot the anomalies that were detected 
 		plt.scatter(X[:, 0], X[:, 1])
-		plt.scatter(X[anomalies, 0], X[anomalies, 1], color='red')
+		plt.scatter(X[anomalies, 0], X[anomalies, 1], color='red', facecolors='None', marker='o', s=100)
 		plt.xlabel("Latency (ms)")
 		plt.ylabel("Throughput (mb/sec)")
 		plt.title("Anomalies detected")
@@ -147,7 +148,7 @@ def main():
 		plt.show()
 
 
-	if True:
+	if False:
 
 		### Perform the same analysis, using an 11 dimensions dataset ###
 		# import the 11D data 
