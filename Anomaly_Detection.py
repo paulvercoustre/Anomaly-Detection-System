@@ -24,12 +24,11 @@ def estimateGaussian(data):
 
 	mu = np.mean(data, axis=0)
 	print("The features means are: %s" %mu)
-
 	
-	sigma = np.var(data, axis=0)
-	print("The features variances are: %s" %sigma)
+	sigma2 = np.var(data, axis=0)
+	print("The features variances are: %s" %sigma2)
 
-	return mu, sigma
+	return mu, sigma2
 
 
 def multivariateGaussian(data, mu, cov):
@@ -101,44 +100,78 @@ def visualiseFit(data, mu, cov):
 
 def main():
 
-	# import the 2D data 
-	X = np.loadtxt(DATASET_ROOT + "/" + str(training_data), delimiter=",", usecols=(0,1))	
-	Xval = np.loadtxt(DATASET_ROOT + "/" + str(validation_data), delimiter=",", usecols=(0,1))
-	yval = np.loadtxt(DATASET_ROOT + "/" + str(validation_data), delimiter=",", usecols=[2])
+	if False:
 
-	# plot the data
-	print('\nPlotting the data...')
+		### Peform anomaly detection on a dataset of servers with 2 features ###
+		# import the 2D data 
+		X = np.loadtxt(DATASET_ROOT + "/" + str(training_data), delimiter=",", usecols=(0,1))	
+		Xval = np.loadtxt(DATASET_ROOT + "/" + str(validation_data), delimiter=",", usecols=(0,1))
+		yval = np.loadtxt(DATASET_ROOT + "/" + str(validation_data), delimiter=",", usecols=[2])
+
+		# plot the data
+		print('\nPlotting the data...')
 	
-	plt.scatter(X[:, 0], X[:, 1])
-	plt.xlabel("Latency (ms)")
-	plt.ylabel("Throughput (mb/sec)")
-	plt.axis([0, 30, 0, 30])
-	plt.show()
+		plt.scatter(X[:, 0], X[:, 1])
+		plt.xlabel("Latency (ms)")
+		plt.ylabel("Throughput (mb/sec)")
+		plt.axis([0, 30, 0, 30])
+		plt.show()
 
-	# fit the model to the data
-	print('\nFitting the model...')
-	[mean, cov] = estimateGaussian(X)
-	proba = multivariateGaussian(X, mean, cov)
+		# fit the model to the data
+		print('\nFitting the model...')
+	
+		[mean, sigma2] = estimateGaussian(X)
+		p = multivariateGaussian(X, mean, sigma2)
 
-	visualiseFit(X, mean, cov)
+		# plot the model
+		visualiseFit(X, mean, sigma2)
 
-	# cross validate the optimal threshold
-	[epsilon, F1] = gridSearch(proba, yval)
+		# cross validate the optimal threshold
+		print('\nCross-validating the threshold')
+		pval = multivariateGaussian(Xval, mean, sigma2)
+		[epsilon, F1] = gridSearch(pval, yval)
 
-	print("Best threshold found using cross-validation: %s" %epsilon)
-	print("Best F1 score on validation data: %s" %F1)
+		print("Best threshold found using cross-validation: %s" %epsilon)
+		print("Best F1 score on validation data: %s" %F1)
 
-	# find the anomalies
-	anomalies = np.where(proba < epsilon)
+		# find the anomalies
+		anomalies = np.where(p < epsilon)
 
-	#plot the anomalies that were detected 
-	plt.scatter(X[:, 0], X[:, 1])
-	plt.scatter(X[anomalies, 0], X[anomalies, 1], color='red')
-	plt.xlabel("Latency (ms)")
-	plt.ylabel("Throughput (mb/sec)")
-	plt.title("Anomalies detected")
-	plt.axis([0, 30, 0, 30])
-	plt.show()
+		#plot the anomalies that were detected 
+		plt.scatter(X[:, 0], X[:, 1])
+		plt.scatter(X[anomalies, 0], X[anomalies, 1], color='red')
+		plt.xlabel("Latency (ms)")
+		plt.ylabel("Throughput (mb/sec)")
+		plt.title("Anomalies detected")
+		plt.axis([0, 30, 0, 30])
+		plt.show()
+
+
+	if True:
+
+		### Perform the same analysis, using an 11 dimensions dataset ###
+		# import the 11D data 
+		print('\nImporting 11D data')
+		X = np.loadtxt(DATASET_ROOT + "/" + str(training_data2), delimiter=",", usecols=range(11))	
+		Xval = np.loadtxt(DATASET_ROOT + "/" + str(validation_data2), delimiter=",", usecols=range(11))
+		yval = np.loadtxt(DATASET_ROOT + "/" + str(validation_data2), delimiter=",", usecols=[11])
+
+		# fit the model to the data
+		print('\nFitting the model...')
+		[mean, sigma2] = estimateGaussian(X)
+		p = multivariateGaussian(X, mean, sigma2)
+
+		# cross validate the optimal threshold
+		pval = multivariateGaussian(Xval, mean, sigma2)
+		[epsilon, F1] = gridSearch(pval, yval)
+
+		print("Best threshold found using cross-validation: %s" %epsilon)
+		print("Best F1 score on validation data: %s" %F1)
+
+		# find the anomalies
+		anomalies = np.where(p < epsilon)
+		nb_outliers = len(anomalies[0])
+		print("%s anomalies found" %nb_outliers)
 
 
 if __name__ == "__main__":
