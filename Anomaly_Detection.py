@@ -148,7 +148,7 @@ def main():
 		plt.show()
 
 
-	if False:
+	if True:
 
 		### Perform the same analysis, using an 11 dimensions dataset ###
 		# import the 11D data 
