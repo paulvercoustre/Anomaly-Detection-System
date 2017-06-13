@@ -1,75 +1,16 @@
-"""
-A simple anomaly detection system using a mixture of Gaussians
 
-The model estimates the means and variances of each feature
-and fits a multivariate isotropic Gaussian to the data using these parameters
-
-The probability threshold that minimises the F1 score on
-the validation set is used as the decision boundary
-
-"""
 
 from __future__ import division
 import os
 import sys
 import numpy as np
-from scipy.stats import multivariate_normal
+from model import GMM
 import matplotlib.pyplot as plt
 
 DATASET_ROOT = os.path.join(os.path.dirname(__file__),"data")
 
 
-def estimateGaussian(data):
-	"""Estimate the means and variances of the data"""
-
-	mu = np.mean(data, axis=0)
-	print("The features means are: %s" %mu)
-	
-	sigma2 = np.var(data, axis=0)
-	print("The features variances are: %s" %sigma2)
-
-	return mu, sigma2
-
-
-def multivariateGaussian(data, mu, cov):
-	"""Compute the probability density function of data under
-	the multivariate Gaussian distribution with params mu and cov"""
-
-	if cov.ndim == 1:
-		cov = np.diag(cov)
-
-	p = multivariate_normal.pdf(data, mean=mu, cov=cov)
-
-	return p
-
-
-def gridSearch(proba, labels):
-	"""Find the threshold that minimises the F1 score"""
-
-	bestEpsilon = 0
-	bestF1 = 0
-	F1 = 0
-	stepSize = (max(proba) - min(proba)) / 1000
-
-	for epsilon in np.arange(min(proba), max(proba), stepSize):
-		pred = proba < epsilon
-
-		tp = sum((pred == 1) & (labels == 1))  # true positives
-		fp = sum((pred == 1) & (labels == 0))  # false positives
-		fn = sum((pred == 0) & (labels == 1))  # false negatives
-
-		precision = tp / (tp + fp)
-		recall = tp / (tp + fn)
-		F1 = (2 * precision * recall) / (precision + recall)
-
-		if F1 > bestF1:
-			bestF1 = F1
-			bestEpsilon = epsilon
-
-	return bestEpsilon, bestF1
-
-
-def visualiseFit(data, mu, cov):
+def visualiseFit(data, model):
 	"""Plot the contour lines of a 2D multivariate Gaussian"""
 	
  	slack = 5  	 # margins for plot
@@ -81,7 +22,7 @@ def visualiseFit(data, mu, cov):
 
 	# compute the probabilities associated with the generated data
 	genData = np.stack((X.flatten(), Y.flatten()), axis=1)
-	proba = multivariateGaussian(genData, mu, cov)
+	proba = model.multivariateGaussian(genData, model.mu, model.sigma2)
 	
 	# reshape the probabilities to match X & Y
 	Z = np.reshape(proba, (ticks, ticks))
@@ -102,35 +43,36 @@ def visualiseFit(data, mu, cov):
 def main():
 
 	if True:
-
 		### Peform anomaly detection on a dataset of servers with 2 features ###
 		# import the 2D data 
 		X = np.loadtxt(DATASET_ROOT + "/" + str(training_data), delimiter=",", usecols=(0,1))	
 		Xval = np.loadtxt(DATASET_ROOT + "/" + str(validation_data), delimiter=",", usecols=(0,1))
 		yval = np.loadtxt(DATASET_ROOT + "/" + str(validation_data), delimiter=",", usecols=[2])
 
-		# plot the data
+				# plot the data
 		print('\nPlotting the data...')
+		slack = 5  # margin for plots
 	
 		plt.scatter(X[:, 0], X[:, 1])
 		plt.xlabel("Latency (ms)")
 		plt.ylabel("Throughput (mb/sec)")
-		plt.axis([0, 30, 0, 30])
+		plt.axis([min(X[:, 0]) - slack, max(X[:, 0]) + slack, min(X[:, 1]) - slack, max(X[:, 0]) + slack])
 		plt.show()
 
 		# fit the model to the data
 		print('\nFitting the model...')
-	
-		[mean, sigma2] = estimateGaussian(X)
-		p = multivariateGaussian(X, mean, sigma2)
+
+		model = GMM()
+		[mean, sigma2] = model.estimateGaussian(X)
+		p = model.multivariateGaussian(X, mean, sigma2)
 
 		# plot the model
-		visualiseFit(X, mean, sigma2)
+		visualiseFit(X, model)
 
 		# cross validate the optimal threshold
 		print('\nCross-validating the threshold')
-		pval = multivariateGaussian(Xval, mean, sigma2)
-		[epsilon, F1] = gridSearch(pval, yval)
+		pval = model.multivariateGaussian(Xval, mean, sigma2)
+		[epsilon, F1] = model.gridSearch(pval, yval)
 
 		print("Best threshold found using cross-validation: %s" %epsilon)
 		print("Best F1 score on validation data: %s" %F1)
@@ -144,7 +86,7 @@ def main():
 		plt.xlabel("Latency (ms)")
 		plt.ylabel("Throughput (mb/sec)")
 		plt.title("Anomalies detected")
-		plt.axis([0, 30, 0, 30])
+		plt.axis([min(X[:, 0]) - slack, max(X[:, 0]) + slack, min(X[:, 1]) - slack, max(X[:, 0]) + slack])
 		plt.show()
 
 
@@ -159,12 +101,13 @@ def main():
 
 		# fit the model to the data
 		print('\nFitting the model...')
-		[mean, sigma2] = estimateGaussian(X)
-		p = multivariateGaussian(X, mean, sigma2)
+		model = GMM()
+		[mean, sigma2] = model.estimateGaussian(X)
+		p = model.multivariateGaussian(X, mean, sigma2)
 
 		# cross validate the optimal threshold
-		pval = multivariateGaussian(Xval, mean, sigma2)
-		[epsilon, F1] = gridSearch(pval, yval)
+		pval = model.multivariateGaussian(Xval, mean, sigma2)
+		[epsilon, F1] = model.gridSearch(pval, yval)
 
 		print("Best threshold found using cross-validation: %s" %epsilon)
 		print("Best F1 score on validation data: %s" %F1)
